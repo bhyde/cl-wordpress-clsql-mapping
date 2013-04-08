@@ -250,6 +250,12 @@
                        :db-info (:join-class wp-term-relationship
                                  :home-key id
                                  :foreign-key object-id
+                                 :set t))
+   (comments :accessor comments
+                       :db-kind :join
+                       :db-info (:join-class wp-comment
+                                 :home-key id
+                                 :foreign-key comment-post-id
                                  :set t)))
   (:base-table "wp_lckt07_posts"))
 
@@ -371,12 +377,12 @@
                       :initarg :comment-author-ip)
    (comment-date :accessor comment-date
                  :column "comment_date"
-                 :type integer
+                 :type wall-time
                  :db-kind :base
                  :initarg :comment-date)
    (comment-date-gmt :accessor comment-date-gmt
                      :column "comment_date_gmt"
-                     :type integer
+                     :type wall-time
                      :db-kind :base
                      :initarg :comment-date-gmt)
    (comment-content :accessor comment-content
@@ -657,8 +663,9 @@
 
 (defmethod print-object ((tt wp-term-taxonomy) stream)
   (print-unreadable-object (tt stream :type t :identity nil)
-    (format stream "#~D ~A"
+    (format stream "#~D ~A ~A"
             (slot-value tt 'term-taxonomy-id)
+            (taxonomy tt)
             (cond
               ((slot-boundp tt 'term)
                (foo (term tt)))
