@@ -29,9 +29,11 @@ will get a list of the tables in you wordpress blog's mysql database.
 
 # Some Examples
 
-Fetch all the authors: (select 'wp-users)
-Fetch a single post: (fetch-post "title") or (fetch-post 3)
-Fetch the comments on a post: (comments (fetch-post 3))
+Fetch all the authors: `(select 'wp-users)`
+
+Fetch a single post: `(fetch-post "title")` or `(fetch-post 3)`
+
+Fetch the comments on a post: `(comments (fetch-post 3))`
 
 # Appendix A: forwarding a remote mysql server's listener
 

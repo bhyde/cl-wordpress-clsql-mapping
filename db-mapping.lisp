@@ -1,4 +1,7 @@
-(in-package "CL-WORDPRESS")
+(in-package "WORDPRESS")
+
+#+ccl
+(clsql-sys:push-library-path (probe-file "/opt/local/lib/mysql5/mysql/"))
 
 (defun trimmed-text (text &optional (max 15))
   (if (< max (length text))
