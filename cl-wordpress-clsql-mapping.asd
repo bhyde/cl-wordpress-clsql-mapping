@@ -5,7 +5,7 @@
   :license "Apache 2.0"
   :description "clsql:def-view-class definitions for wordpress"
   :serial t
-  :depends-on (alexandria clsql)
+  :depends-on (alexandria cl-ppcre clsql)
   :components ((:system clsql-mysql 
                         :around-compile
                         #'(lambda (thunk) ;; see Note A

@@ -18,10 +18,6 @@
 (defvar *mysql-port* 3306)
 (defvar *wp-prefix* "")
 
-;;; Cache some info.
-(defvar *table-names* nil)
-(defvar *option-names* nil)
-
 (defmacro with-blog ((&key (recording t)) &body body)
   (once-only (recording)
     `(let ((*default-database*
@@ -52,50 +48,16 @@
         *mysql-password* password 
         *mysql-database* database 
         *mysql-host* host 
-        *wp-prefix* prefix 
-        *option-names* nil
-        *table-names* nil)
+        *wp-prefix* prefix)
   (with-blog () (list-tables)))
 
-(defun sql2lisp (name-string)
-  (intern (string-upcase (substitute #\- #\_ name-string))))
 
-(defun lisp2sql (token)
-  (etypecase token
-    (string token)
-    (symbol
-     (nstring-downcase (substitute #\_ #\- (symbol-name token))))))
 
-(defun table-name (table)
-  (format nil "~A~A" *wp-prefix* (lisp2sql table)))
 
-(defun tables-names ()
-  (or *table-names*
-      (loop
-         as prefix-length = (1+ (length *wp-prefix*))
-         for (actual-table-name) in (caar (with-blog () (list-tables)))
-         collect (sql2lisp (subseq actual-table-name prefix-length)))))
 
-;;;; Options
 
-(defun list-options ()
-  (or *option-names*
-      (setf *option-names*
-            (loop for (option-name) in (caar (squery 'options :fields '(option-name)))
-               collect (sql2lisp option-name)))))
 
-(defun fetch-option (name)
-  (caaaar
-   (fquery "SELECT option_value FROM ~A WHERE option_name = ~S" 
-           (table-name :options)
-           (lisp2sql name))))
 
-(defun show-options (n)
-  (list-options)
-  (loop
-     for i below n
-     for k in (nthcdr n *option-names*)
-     do (format t "~&~30a ~a" k (fetch-option k))))
 
 ;;; consider https://github.com/nixeagle/php-serialization
 
@@ -181,57 +143,137 @@
             (trimmed-text (option-value option)))))
 
 
+
 ;;;; Post and their Metadata
 
 (def-view-class wp-post ()
-  ((id :column "ID" :type integer :db-kind :key :initarg :id :accessor id)
-   (post-author :column "post_author" :type integer :db-kind :base
-    :initarg :post-author :accessor post-author)
-   (post-date :column "post_date" :type wall-time :db-reader parse-iso-8601-time-foo :db-kind :base :initarg
-    :post-date)
-   (post-date-gmt :column "post_date_gmt" :type wall-time  :db-reader parse-iso-8601-time-foo :db-kind :base
-    :initarg :post-date-gmt)
-   (post-content :column "post_content" :type string :db-kind :base
-    :initarg :post-content :accessor post-content)
-   (post-title :column "post_title" :type string :db-kind :base :initarg
-    :post-title :accessor post-title)
-   (post-category :column "post_category" :type integer :db-kind :base
-    :initarg :post-category :accessor post-category)
-   (post-excerpt :column "post_excerpt" :type string :db-kind :base
-    :initarg :post-excerpt)
-   (post-status :column "post_status" :type keyword :db-kind :base :initarg
-    :post-status :accessor post-status)
-   (comment-status :column "comment_status" :type keyword :db-kind :base
-    :initarg :comment-status)
-   (ping-status :column "ping_status" :type keyword :db-kind :base :initarg
-    :ping-status)
-   (post-password :column "post_password" :type string :db-kind :base
-    :initarg :post-password)
-   (post-name :column "post_name" :type string :db-kind :base :initarg
-    :post-name :accessor post-name)
-   (to-ping :column "to_ping" :type string :db-kind :base :initarg
-    :to-ping)
-   (pinged :column "pinged" :type string :db-kind :base :initarg :pinged)
-   (post-modified :column "post_modified" :type wall-time  :db-reader parse-iso-8601-time-foo :db-kind :base
-    :initarg :post-modified)
-   (post-modified-gmt :column "post_modified_gmt"
+  ((id :accessor id
+       :column "ID"
+       :type integer
+       :db-kind :key
+       :initarg :id)
+   (post-author :accessor post-author
+                :column "post_author"
+                :type integer
+                :db-kind :base
+                :initarg :post-author)
+   (post-date :accessor post-date
+              :column "post_date"
+              :type wall-time
+              :db-reader parse-iso-8601-time-foo
+              :db-kind :base
+              :initarg :post-date)
+   (post-date-gmt :accessor post-date-gmt
+                  :column "post_date_gmt"
+                  :type wall-time
+                  :db-reader parse-iso-8601-time-foo
+                  :db-kind :base
+                  :initarg :post-date-gmt)
+   (post-content :accessor post-content
+                 :column "post_content"
+                 :type string
+                 :db-kind :base
+                 :initarg :post-content)
+   (post-title :accessor post-title
+               :column "post_title"
+               :type string
+               :db-kind :base
+               :initarg :post-title)
+   (post-category :accessor post-category
+                  :column "post_category"
+                  :type integer
+                  :db-kind :base
+                  :initarg :post-category)
+   (post-excerpt :accessor post-excerpt
+                 :column "post_excerpt"
+                 :type string
+                 :db-kind :base
+                 :initarg :post-excerpt)
+   (post-status :accessor post-status
+                :column "post_status"
+                :type keyword
+                :db-kind :base
+                :initarg :post-status)
+   (comment-status :accessor comment-status
+                   :column "comment_status"
+                   :type keyword
+                   :db-kind :base
+                   :initarg :comment-status)
+   (ping-status :accessor ping-status
+                :column "ping_status"
+                :type keyword
+                :db-kind :base
+                :initarg :ping-status)
+   (post-password :accessor post-password
+                  :column "post_password"
+                  :type string
+                  :db-kind :base
+                  :initarg :post-password)
+   (post-name :accessor post-name
+              :column "post_name"
+              :type string
+              :db-kind :base
+              :initarg :post-name
+              :accessor post-name)
+   (to-ping :accessor to-ping
+            :column "to_ping"
+            :type string
+            :db-kind :base
+            :initarg :to-ping)
+   (pinged :accessor pinged
+           :column "pinged"
+           :type string
+           :db-kind :base
+           :initarg :pinged)
+   (post-modified :accessor post-modified
+                  :column "post_modified"
+                  :type wall-time
+                  :db-reader parse-iso-8601-time-foo
+                  :db-kind :base
+                  :initarg :post-modified)
+   (post-modified-gmt :accessor post-modified-gmt
+                      :column "post_modified_gmt"
                       :type wall-time
                       :db-reader parse-iso-8601-time-foo
                       :db-kind :base
                       :initarg :post-modified-gmt)
-   (post-content-filtered :column "post_content_filtered" :type string
-    :db-kind :base :initarg :post-content-filtered)
-   (post-parent :column "post_parent" :type integer :db-kind :base
-    :initarg :post-parent)
-   (guid :column "guid" :type string :db-kind :base :initarg :guid)
-   (menu-order :column "menu_order" :type integer :db-kind :base :initarg
-    :menu-order)
-   (post-type :column "post_type" :type keyword :db-kind :base :initarg
-    :post-type :accessor post-type)
-   (post-mime-type :column "post_mime_type" :type string :db-kind :base
-    :initarg :post-mime-type)
-   (comment-count :column "comment_count" :type integer :db-kind :base
-    :initarg :comment-count :accessor comment-count)
+   (post-content-filtered :accessor post-content-filtered
+                          :column "post_content_filtered"
+                          :type string
+                          :db-kind :base
+                          :initarg :post-content-filtered)
+   (post-parent :accessor post-parent
+                :column "post_parent"
+                :type integer
+                :db-kind :base
+                :initarg :post-parent)
+   (guid :accessor guid
+         :column "guid"
+         :type string
+         :db-kind :base
+         :initarg :guid)
+   (menu-order :accessor menu-order
+               :column "menu_order"
+               :type integer
+               :db-kind :base
+               :initarg :menu-order)
+   (post-type :accessor post-type
+              :column "post_type"
+              :type keyword
+              :db-kind :base
+              :initarg :post-type
+              :accessor post-type)
+   (post-mime-type :accessor post-mime-type
+                   :column "post_mime_type"
+                   :type string
+                   :db-kind :base
+                   :initarg :post-mime-type)
+   (comment-count :accessor comment-count
+                  :column "comment_count"
+                  :type integer
+                  :db-kind :base
+                  :initarg :comment-count
+                  :accessor comment-count)
    ;; info we garner by queries.
    (post-user :accessor post-user
               :db-kind :join
@@ -424,7 +466,7 @@
                       :column "comment_subscribe"
                       :type keyword
                       :db-kind :base
-                      :initarg :comment-subscribe))
+                      :initarg :comment-subscribe)
   ;; computed
   (post :accessor post
         :db-kind :join
@@ -435,9 +477,9 @@
   (comment-metadata :reader comment-metadata
                     :db-kind :join
                     :db-info (:join-class wp-commentmeta
-                                          :home-key id
+                                          :home-key comment-id
                                           :foreign-key comment-id
-                                          :set t))
+                                          :set t)))
 
   (:base-table "wp_lckt07_comments"))
 
@@ -470,6 +512,13 @@
                   :foreign-key comment-id
                   :set nil)))
   (:base-table "wp_lckt07_commentmeta"))
+
+(defmethod print-object ((cm wp-commentmeta) stream)
+  (print-unreadable-object (cm stream :type t :identity nil)
+    (format stream "#~D ~a:~A"
+            (meta-id cm)
+            (meta-key cm)
+            (trimmed-text (meta-value cm) 15))))
 
 ;;;; Links
 
@@ -608,19 +657,27 @@
                      :type integer
                      :db-kind :key
                      :initarg :term-taxonomy-id)
+   (term-order :accessor term-order
+               :column "term_order"
+               :type integer
+               :db-kind :base
+               :initarg :term-order)
+   ;; computed
    (term-taxonomy
       :accessor term-taxonomy
       :db-kind :join
       :db-info (:join-class wp-term-taxonomy
 	        :home-key term-taxonomy-id
 		:foreign-key term-taxonomy-id
-		:set nil))
-   (term-order :accessor term-order
-               :column "term_order"
-               :type integer
-               :db-kind :base
-               :initarg :term-order))
+		:set nil)))
   (:base-table "wp_lckt07_term_relationships"))
+
+(defmethod print-object ((tr wp-term-relationship) stream)
+  (print-unreadable-object (tr stream :type t :identity nil)
+    (format stream "#~D ~A:~A"
+            (object-id tr)
+            (taxonomy (term-taxonomy a-term-relationship))
+            (name (term (term-taxonomy tr))))))
 
 (def-view-class wp-term-taxonomy ()
   ((term-taxonomy-id :accesor term-taxonomy-id
@@ -668,7 +725,7 @@
             (taxonomy tt)
             (cond
               ((slot-boundp tt 'term)
-               (foo (term tt)))
+               (name (term tt)))
               (t (format nil "term#~d" (slot-value tt 'term-id)))))))
 
 ;;; Users
@@ -764,18 +821,14 @@
                :initarg :meta-value))
   (:base-table "wp_lckt07_usermeta"))
 
-;; "wp_lckt07_commentmeta"
-;; "wp_lckt07_comments"
-;; "wp_lckt07_links"
-;; "wp_lckt07_options"
+
+;;; Other tables in my blog's database
 ;; "wp_lckt07_pollin_answer"
 ;; "wp_lckt07_pollin_question"
 ;; "wp_lckt07_postie_config"
-
-;;; Others
-;;  "wp_lckt07_surveys_answer"
-;;  "wp_lckt07_surveys_question"
-;;  "wp_lckt07_surveys_result"
-;;  "wp_lckt07_surveys_result_answer"
-;;  "wp_lckt07_surveys_survey"
+;; "wp_lckt07_surveys_answer"
+;; "wp_lckt07_surveys_question"
+;; "wp_lckt07_surveys_result"
+;; "wp_lckt07_surveys_result_answer"
+;; "wp_lckt07_surveys_survey"
 
